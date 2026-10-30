@@ -45,6 +45,7 @@ Python 3.10+, requests, Playwright with Chromium, gitleaks, python-docx, LibreOf
 - CV text goes to the public LanguageTool API unless `LANGUAGETOOL_URL` points to a self-hosted server. The public API also has a rate limit.
 - CV files hold personal data and are not stored here. CI therefore skips the CV checks (`skipped: no CV path given`), and the report says that a skip is not a pass. I check the CVs locally before sending them, with the CV command under Usage.
 - Any status other than 200 counts as broken, including sites that block automated requests. One exception, listed under `link_exceptions` in `targets.yaml`: Google Scholar answers 403 to GitHub's runners, so CI reports that link as "not verified from CI" instead of failing. A local run still needs 200.
+- github.com rate-limits anonymous page requests from shared runners (HTTP 429). When a repository, file or folder link on github.com still gets 429 after three retries, the check asks the GitHub API instead and passes only if the repository is public and the file exists at that ref. The report marks such links as "verified via GitHub API". Other github.com links that stay at 429 still fail.
 - Denylist matching is a plain substring search, so short terms also hit inside longer words. The report marks those hits.
 - GitHub cron runs in UTC, so the daily run starts at 06:00 Berlin time in winter and 07:00 in summer.
 

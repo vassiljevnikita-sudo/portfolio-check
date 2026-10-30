@@ -6,6 +6,11 @@ settings.link_exceptions in targets.yaml lists hosts that refuse requests from c
 runners. On a GitHub Actions runner only, a listed status from a listed host is reported
 as "not verified from CI" with its reason instead of failing. Run locally, the same URL
 still has to return 200.
+
+github.com rate-limits anonymous page requests from shared runners. When a repository,
+file or folder URL on github.com still answers 429 after the retries, the check asks the
+GitHub API instead and passes only if the repository is public and the file or folder
+exists at that ref. Other github.com URLs that stay at 429 still fail.
 """
 
 from __future__ import annotations
@@ -85,6 +90,8 @@ def check_url(ctx: Context, url: str, sleep=time.sleep) -> tuple[bool, str]:
                 wait = 5.0 * attempts
             sleep(min(max(wait, 1.0), 30.0))
             continue
+        if resp.status_code == 429 and urlparse(url).netloc.lower() == "github.com":
+            return verify_via_github_api(ctx, url)
         final = resp.url or url
         redirected = normalize_for_fetch(final).rstrip("/") != normalize_for_fetch(url).rstrip("/")
         if redirected and is_login_url(final):
@@ -93,6 +100,33 @@ def check_url(ctx: Context, url: str, sleep=time.sleep) -> tuple[bool, str]:
             return False, f"{resp.status_code} {url}" + (f" -> {final}" if redirected else "")
         return True, f"200 {url}" + (f" -> {final}" if redirected else "")
     return False, f"ERR {url}: {last_error}"
+
+
+GITHUB_PAGE = re.compile(
+    r"^https://github\.com/(?P<owner>[\w.-]+)/(?P<repo>[\w.-]+)"
+    r"(?:/(?P<kind>blob|tree)/(?P<ref>[^/?#]+)(?:/(?P<path>[^?#]*))?)?/?(?:[?#].*)?$"
+)
+
+
+def verify_via_github_api(ctx: Context, url: str) -> tuple[bool, str]:
+    """Fallback for a github.com page that stays rate-limited (429).
+
+    Passes only if the repository is public and, for blob/tree URLs, the path exists
+    at that ref. The API call may use a token, so the public flag is checked explicitly.
+    """
+    m = GITHUB_PAGE.match(url)
+    if not m:
+        return False, f"429 {url} (rate-limited; no API fallback for this URL)"
+    owner, repo = m["owner"], m["repo"]
+    meta = ctx.github_api(f"repos/{owner}/{repo}")
+    if meta.status_code != 200 or meta.json().get("private", True):
+        return False, f"429 {url} (rate-limited; API: repository not public or not found)"
+    if m["kind"]:
+        contents = ctx.github_api(f"repos/{owner}/{repo}/contents/{m['path'] or ''}",
+                                  params={"ref": m["ref"]})
+        if contents.status_code != 200:
+            return False, f"429 {url} (rate-limited; API: {contents.status_code} for path)"
+    return True, f"200 {url} (page rate-limited with 429; verified via GitHub API: public, exists)"
 
 
 def on_ci_runner() -> bool:
