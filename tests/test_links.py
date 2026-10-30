@@ -138,3 +138,57 @@ def test_link_exception_does_not_apply_locally_or_to_other_statuses(ctx, tmp_pat
     result = links.run(ctx, repo)
     assert result.status == FAIL
     assert result.data["broken"] == 1 and result.data["unverified"] == 1
+
+
+class _ApiResponse:
+    def __init__(self, status, body=None):
+        self.status_code = status
+        self._body = body or {}
+
+    def json(self):
+        return self._body
+
+
+def _rate_limited_ctx(api):
+    class Ctx:
+        config = type("C", (), {"link_timeout": 10})()
+
+        def fetch(self, url, timeout=None):
+            return FakeResponse(status=429, url=url, headers={"Retry-After": "1"})
+
+        def github_api(self, path, params=None):
+            return api(path, params)
+
+    return Ctx()
+
+
+def test_github_page_stuck_at_429_is_verified_via_api():
+    def api(path, params):
+        if path == "repos/o/r":
+            return _ApiResponse(200, {"private": False})
+        assert path == "repos/o/r/contents/docs/a.md" and params == {"ref": "main"}
+        return _ApiResponse(200)
+
+    ok, line = links.check_url(_rate_limited_ctx(api), "https://github.com/o/r/blob/main/docs/a.md",
+                               sleep=lambda s: None)
+    assert ok and "verified via GitHub API" in line
+
+
+def test_api_fallback_fails_for_private_repo_or_missing_path():
+    private = lambda path, params: _ApiResponse(200, {"private": True})
+    ok, line = links.check_url(_rate_limited_ctx(private), "https://github.com/o/r", sleep=lambda s: None)
+    assert not ok and "not public" in line
+
+    def missing(path, params):
+        return _ApiResponse(200, {"private": False}) if path == "repos/o/r" else _ApiResponse(404)
+
+    ok, line = links.check_url(_rate_limited_ctx(missing), "https://github.com/o/r/blob/main/gone.md",
+                               sleep=lambda s: None)
+    assert not ok and "404 for path" in line
+
+
+def test_api_fallback_does_not_cover_other_github_pages():
+    api = lambda path, params: _ApiResponse(200, {"private": False})
+    ok, line = links.check_url(_rate_limited_ctx(api), "https://github.com/o/r/releases/latest/download/x.apk",
+                               sleep=lambda s: None)
+    assert not ok and "no API fallback" in line
