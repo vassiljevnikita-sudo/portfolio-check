@@ -75,6 +75,10 @@ sites:
       - Leader5
       - Trading 212
       - Trades
+      # one-line honesty labels: demo account, backtests, default Sample tab
+      - virtual money
+      - simulated backtests
+      - in-sample backtest
     required_links:
       - https://github.com/vassiljevnikita-sudo/simple-and-light-research
     # Charts and trades load after the page; after network idle none of their
@@ -89,7 +93,8 @@ sites:
     forbidden_patterns:
       # a line that holds nothing but a dash placeholder (em dash, en dash or hyphen)
       - "^\\s*[—–-]\\s*$"
-    min_numbers: 4
+    # about 225 after network idle (research figures, live metrics, trade rows)
+    min_numbers: 150
 
 # CV files hold personal contact data and are never committed (cv/ is gitignored).
 # Pass them with --cv-de / --cv-en or the env vars below. Without a file the CV
