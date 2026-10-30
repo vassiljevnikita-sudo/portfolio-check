@@ -57,7 +57,7 @@ def test_shipped_targets_file_loads():
     assert {"complaint-dossier", "simple-and-light-research", "questify-releases", "profile",
             "portfolio-check", "questify", "qbd-demo", "cv-de", "cv-en"} <= names
     qbd = config.target("qbd-demo")
-    assert qbd.min_numbers == 4 and "Keine Messwerte" in qbd.forbidden_phrases
+    assert qbd.min_numbers == 150 and "Keine Messwerte" in qbd.forbidden_phrases
     assert config.cv_rules["max_pages"] == 2
 
 
