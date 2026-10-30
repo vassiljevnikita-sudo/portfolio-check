@@ -73,6 +73,48 @@ def test_rate_limit_is_retried():
     assert ok and len(calls) == 2
 
 
+def _always_429_ctx(calls, headers=None):
+    class Ctx:
+        config = type("C", (), {"link_timeout": 10})()
+
+        def fetch(self, url, timeout=None):
+            calls.append(url)
+            return FakeResponse(status=429, url=url, headers=headers or {})
+
+    return Ctx()
+
+
+def test_expo_429_without_retry_after_backs_off_10_20_40_then_fails_as_throttled():
+    calls, waits = [], []
+    url = "https://mastertasker.expo.app/willkommen/"
+    ok, line = links.check_url(_always_429_ctx(calls), url, sleep=waits.append)
+    assert not ok
+    assert waits == [10.0, 20.0, 40.0]
+    assert len(calls) == 4
+    assert line == f"429 {url} (throttled by host: still 429 after 3 retries)"
+
+
+def test_expo_429_honours_retry_after_capped_at_30_s():
+    calls, waits = [], []
+    ctx = _always_429_ctx(calls, headers={"Retry-After": "120"})
+    links.check_url(ctx, "https://simple-light-qbd.expo.app/", sleep=waits.append)
+    assert waits == [30.0, 30.0, 30.0]
+
+
+def test_other_hosts_keep_the_short_backoff():
+    waits = []
+    links.check_url(_always_429_ctx([]), "https://a.example/", sleep=waits.append)
+    assert waits == [5.0, 10.0, 15.0]
+
+
+def test_expo_hosts_get_one_request_at_a_time():
+    assert links.host_concurrency("mastertasker.expo.app") == 1
+    assert links.host_concurrency("simple-light-qbd.expo.app") == 1
+    assert links.host_concurrency("github.com") == 2
+    assert links.host_concurrency("expo.dev") == links.DEFAULT_CONCURRENCY
+    assert links.host_concurrency("notexpo.app") == links.DEFAULT_CONCURRENCY
+
+
 def test_site_links_come_from_the_rendered_page(ctx):
     site = ctx.config.sites[0]
     ctx.render = lambda s: RenderResult(s.url, s.url, "", "", ["https://demo.example/#top", "mailto:a@b.c", "https://x.example/404"])
