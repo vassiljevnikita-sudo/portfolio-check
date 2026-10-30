@@ -11,6 +11,11 @@ github.com rate-limits anonymous page requests from shared runners. When a repos
 file or folder URL on github.com still answers 429 after the retries, the check asks the
 GitHub API instead and passes only if the repository is public and the file or folder
 exists at that ref. Other github.com URLs that stay at 429 still fail.
+
+Expo's free-tier hosting (*.expo.app) answers bursts with 429 ("free-tier deployment has
+temporarily exceeded its request rate limit"), usually without Retry-After. Those hosts
+get one request at a time and a longer backoff (10, 20, 40 s). A URL that still answers
+429 after the retries fails as "throttled by host".
 """
 
 from __future__ import annotations
@@ -50,21 +55,54 @@ def is_login_url(url: str) -> bool:
 _host_locks: dict[str, threading.Semaphore] = {}
 _host_locks_guard = threading.Lock()
 RATE_LIMITED_HOSTS = {"github.com": 2, "raw.githubusercontent.com": 2}
+# Host suffix -> concurrent requests. Each *.expo.app deployment is limited on its own.
+RATE_LIMITED_SUFFIXES = {".expo.app": 1}
+DEFAULT_CONCURRENCY = 4
+RETRY_AFTER_CAP = 30.0
+
+
+def host_concurrency(host: str) -> int:
+    host = host.lower()
+    if host in RATE_LIMITED_HOSTS:
+        return RATE_LIMITED_HOSTS[host]
+    for suffix, limit in RATE_LIMITED_SUFFIXES.items():
+        if host.endswith(suffix):
+            return limit
+    return DEFAULT_CONCURRENCY
+
+
+def is_throttle_prone(host: str) -> bool:
+    return any(host.lower().endswith(s) for s in RATE_LIMITED_SUFFIXES)
+
+
+def retry_wait(url: str, retry_after: str | None, attempt: int) -> float:
+    """Seconds to wait before retry number `attempt` (1-based) after a 429.
+
+    Retry-After (seconds) is honoured, capped at 30 s. Without it, *.expo.app waits
+    10, 20, 40 s and every other host 5, 10, 15 s.
+    """
+    try:
+        return min(max(float(retry_after or ""), 1.0), RETRY_AFTER_CAP)
+    except ValueError:
+        pass
+    if is_throttle_prone(urlparse(url).netloc):
+        return 10.0 * 2 ** (attempt - 1)
+    return 5.0 * attempt
 
 
 def _host_lock(url: str) -> threading.Semaphore:
     host = urlparse(url).netloc.lower()
     with _host_locks_guard:
         if host not in _host_locks:
-            _host_locks[host] = threading.Semaphore(RATE_LIMITED_HOSTS.get(host, 4))
+            _host_locks[host] = threading.Semaphore(host_concurrency(host))
         return _host_locks[host]
 
 
 def check_url(ctx: Context, url: str, sleep=time.sleep) -> tuple[bool, str]:
     """(ok, evidence line) for one URL.
 
-    Retries once on connection errors and up to three times on 429 (rate limit),
-    waiting as long as Retry-After asks (capped at 30 s).
+    Retries once on connection errors and up to three times on 429 (rate limit);
+    see retry_wait for the waits.
     """
     last_error = ""
     attempts = 0
@@ -84,14 +122,12 @@ def check_url(ctx: Context, url: str, sleep=time.sleep) -> tuple[bool, str]:
                 break
             continue
         if resp.status_code == 429 and attempts < 4:
-            try:
-                wait = float(resp.headers.get("Retry-After", ""))
-            except ValueError:
-                wait = 5.0 * attempts
-            sleep(min(max(wait, 1.0), 30.0))
+            sleep(retry_wait(url, resp.headers.get("Retry-After"), attempts))
             continue
         if resp.status_code == 429 and urlparse(url).netloc.lower() == "github.com":
             return verify_via_github_api(ctx, url)
+        if resp.status_code == 429:
+            return False, f"429 {url} (throttled by host: still 429 after 3 retries)"
         final = resp.url or url
         redirected = normalize_for_fetch(final).rstrip("/") != normalize_for_fetch(url).rstrip("/")
         if redirected and is_login_url(final):
