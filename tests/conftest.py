@@ -1,4 +1,7 @@
-"""Shared fixtures. No test touches the network or needs Chromium, gitleaks or LibreOffice."""
+"""Shared fixtures. No test touches the network or needs gitleaks or LibreOffice.
+
+Only test_render_browser.py uses Chromium (with a local server); it skips itself without it.
+"""
 
 from __future__ import annotations
 

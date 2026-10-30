@@ -31,6 +31,10 @@ class SiteTarget:
     forbidden_patterns: list[str] = field(default_factory=list)
     required_links: list[str] = field(default_factory=list)
     min_numbers: int = 0
+    # URL substrings of images that must be on the page and loaded.
+    required_images: list[str] = field(default_factory=list)
+    # Seconds the render waits for images that are still loading or retrying.
+    image_wait: float = 45.0
     skip_checks: list[str] = field(default_factory=list)
     skip_reason: str = ""
     kind: str = "site"
