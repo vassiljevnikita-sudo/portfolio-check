@@ -43,7 +43,8 @@ jobs:
             | tar -xz -C /usr/local/bin gitleaks
           gitleaks version
       # CV files are personal data and are not stored in this repo, so the CV checks
-      # report "skipped (no CV provided)" here. Run them locally with --cv-de/--cv-en.
+      # report "skipped: no CV path given" here (a skip, not a pass).
+      # Run them locally with --cv-de/--cv-en.
       - name: Run all checks
         env:
           DENYLIST: ${{ secrets.DENYLIST }}

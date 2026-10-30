@@ -54,7 +54,7 @@ claims:
     en: [Complaint Dossier, PowerShell]
   - id: gamp-wording
     ledger: Complaint Dossier designed along GAMP 5 principles (rewritten wording)
-    de: ['GAMP[- ]5[- ]Prinzipien|Prinzipien (von|nach) GAMP[- ]5']
+    de: ['GAMP[- ]5[- ](Prinzipien|Grundsätze)|(Prinzipien|Grundsätzen?) (von|nach|aus) GAMP[- ]5']
     en: ['GAMP 5 principles']
   - id: ai-prototype-wording
     ledger: AI prototype at the former employer, built and presented (rewritten wording)

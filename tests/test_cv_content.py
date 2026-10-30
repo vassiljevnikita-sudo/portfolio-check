@@ -23,7 +23,9 @@ def test_cv_content_fails_on_forbidden_wording_and_missing_claims(ctx, tmp_path)
 
 
 def test_cv_skipped_when_not_provided(ctx):
-    assert cv_content.run(ctx, ctx.config.cvs[0]).status == SKIP
+    result = cv_content.run(ctx, ctx.config.cvs[0])
+    assert result.status == SKIP
+    assert result.summary == "skipped: no CV path given"
 
 
 def test_cv_fails_when_not_provided_and_required(ctx):
@@ -35,3 +37,13 @@ def test_cv_fails_when_explicit_path_missing(ctx, tmp_path, monkeypatch):
     monkeypatch.setenv("TEST_CV_EN", str(tmp_path / "nope.docx"))
     result = cv_content.run(ctx, ctx.config.cvs[0])
     assert result.status == FAIL and result.summary.startswith("file missing")
+
+
+def test_german_gamp_wording_variants_match(ctx):
+    rules = ctx.config.cv_rules
+    pattern = next(c for c in rules["claims"] if c["id"] == "gamp-wording")["de"][0]
+    import re
+
+    for wording in ("Entworfen nach den Grundsätzen von GAMP 5.", "nach GAMP-5-Prinzipien entworfen"):
+        assert re.search(pattern, wording, re.I), wording
+    assert not re.search(pattern, "GAMP-5-konform", re.I)

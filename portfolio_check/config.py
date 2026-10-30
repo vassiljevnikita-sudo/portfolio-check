@@ -70,6 +70,16 @@ class Config:
         raise KeyError(name)
 
 
+def read_allowlist(path: Path) -> list[str]:
+    """Allowlist lines: one term per line, or "span: TEXT" for an exact passage. # starts a comment."""
+    out: list[str] = []
+    for line in Path(path).read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if line and not line.startswith("#"):
+            out.append(line)
+    return out
+
+
 def _load_yaml(path: Path) -> dict:
     with path.open(encoding="utf-8") as fh:
         return yaml.safe_load(fh) or {}
@@ -94,12 +104,7 @@ def load_config(path: str | Path) -> Config:
     cv_rules = _load_yaml(root / rules_file) if (root / rules_file).exists() else {}
 
     allow_file = settings.get("languagetool_allowlist", "allowlist.txt")
-    allowlist: list[str] = []
-    if (root / allow_file).exists():
-        for line in (root / allow_file).read_text(encoding="utf-8").splitlines():
-            line = line.strip()
-            if line and not line.startswith("#"):
-                allowlist.append(line)
+    allowlist = read_allowlist(root / allow_file) if (root / allow_file).exists() else []
 
     return Config(
         root=root,

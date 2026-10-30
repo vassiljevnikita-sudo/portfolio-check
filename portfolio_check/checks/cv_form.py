@@ -22,6 +22,33 @@ from .cv_content import cv_precheck
 NAME = "cv-form"
 CHUNK = 15_000
 URLISH = re.compile(r"(https?://|www\.|@|\.com\b|\.de\b|\.app\b)", re.I)
+BULLET_ONLY = re.compile(r"^[•·▪◦*–-]$")
+
+
+def spellcheck_text(text: str) -> str:
+    """One block per paragraph and per tab-separated column, blank line between blocks.
+
+    LanguageTool reads a single newline or a tab as a space, so a heading followed by a
+    capitalised word ("PROJECTS Released") or a date column next to a name would look
+    like one sentence. A blank line ends the sentence, the way a reader sees the layout.
+    """
+    blocks = []
+    for line in text.split("\n"):
+        for part in line.split("\t"):
+            part = part.strip()
+            if part and not BULLET_ONLY.match(part):
+                blocks.append(part)
+    return "\n\n".join(blocks)
+
+
+def _in_span(chunk: str, offset: int, length: int, spans: list[str]) -> bool:
+    for span in spans:
+        start = chunk.find(span)
+        while start != -1:
+            if start <= offset and offset + length <= start + len(span):
+                return True
+            start = chunk.find(span, start + 1)
+    return False
 
 
 def pdf_pages(ctx, docx: Path) -> tuple[int, Path]:
@@ -47,19 +74,24 @@ def pdf_pages(ctx, docx: Path) -> tuple[int, Path]:
 
 def _chunks(text: str) -> list[str]:
     out, cur = [], ""
-    for para in text.split("\n"):
-        if len(cur) + len(para) + 1 > CHUNK and cur:
+    for para in text.split("\n\n"):
+        if len(cur) + len(para) + 2 > CHUNK and cur:
             out.append(cur)
             cur = ""
-        cur += para + "\n"
+        cur += para + "\n\n"
     if cur.strip():
         out.append(cur)
     return out
 
 
 def language_issues(ctx, text: str, language: str, allowlist: list[str], ignore_rules: list[str]) -> list[str]:
-    """LanguageTool matches that are not allowlisted. Raises RuntimeError."""
-    allowed = {a.lower() for a in allowlist}
+    """LanguageTool matches that are not allowlisted. Raises RuntimeError.
+
+    Allowlist lines are single terms (case-insensitive), or "span: TEXT" to exempt an exact
+    passage such as a citation in another language.
+    """
+    spans = [a[5:].strip() for a in allowlist if a.startswith("span:")]
+    allowed = {a.lower() for a in allowlist if not a.startswith("span:")}
     issues: list[str] = []
     for chunk in _chunks(text):
         try:
@@ -78,6 +110,8 @@ def language_issues(ctx, text: str, language: str, allowlist: list[str], ignore_
             if rule in ignore_rules:
                 continue
             if token.lower().strip(".,;:()") in allowed or URLISH.search(token):
+                continue
+            if _in_span(chunk, m["offset"], m["length"], spans):
                 continue
             context = m.get("context", {}).get("text", "").strip()
             issues.append(f"{rule}: {m.get('message', '')} [{token!r} in {context!r}]")
@@ -110,7 +144,7 @@ def run(ctx, cv):
     lt = rules.get("languagetool", {})
     try:
         issues = language_issues(
-            ctx, docx_text(path), cv.language, ctx.config.allowlist, lt.get("ignore_rules", [])
+            ctx, spellcheck_text(docx_text(path)), cv.language, ctx.config.allowlist, lt.get("ignore_rules", [])
         )
         if issues:
             problems.append(f"LanguageTool ({cv.language}): {len(issues)} issue(s)")

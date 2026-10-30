@@ -41,7 +41,7 @@ Python 3.10+, requests, Playwright with Chromium, gitleaks, python-docx, LibreOf
 
 - The README check looks for headings and labels. It cannot tell whether the text under them is any good.
 - CV text goes to the public LanguageTool API unless `LANGUAGETOOL_URL` points to a self-hosted server. The public API also has a rate limit.
-- CV files hold personal data and are not stored here, so CI skips the CV checks. They run on my machine.
+- CV files hold personal data and are not stored here. In CI the CV checks therefore report `skipped: no CV path given`, and the report says that a skip is not a pass. I run them on my machine before sending a CV.
 - Any status other than 200 counts as broken, including sites that block automated requests.
 - Denylist matching is a plain substring search, so short terms also hit inside longer words. The report marks those hits.
 - GitHub cron runs in UTC, so the daily run starts at 06:00 Berlin time in winter and 07:00 in summer.
@@ -52,12 +52,15 @@ Python 3.10+, requests, Playwright with Chromium, gitleaks, python-docx, LibreOf
 python -m portfolio_check --all                       # everything, the default
 python -m portfolio_check --check NAME --target NAME  # one check, one target; both flags repeat
 python -m portfolio_check --list                      # checks and targets
+python -m portfolio_check --check cv-content --check cv-form --check links \
+    --target cv-de --target cv-en --cv-de PATH.docx --cv-en PATH.docx   # the CV checks
 ```
 
 Other options:
 
 - `--local NAME=PATH` checks a local checkout or file instead of the public source, for example `--local complaint-dossier=../complaint-dossier` before opening a pull request. Relative README links then have to exist in that folder.
 - `--cv-de PATH` and `--cv-en PATH` (or `PORTFOLIO_CV_DE` and `PORTFOLIO_CV_EN`) name the CV files. Without them the CV checks are skipped; `--require-cv` makes them fail instead.
+- `--allowlist-file PATH` (or `PORTFOLIO_ALLOWLIST`) adds LanguageTool exceptions that should not be public, such as employer names and my address. It uses the same format as `allowlist.txt`: one term per line, or `span: TEXT` to exempt an exact passage like a citation in another language.
 - `--denylist-file PATH` reads the private terms from a file. Otherwise they come from the `DENYLIST` environment variable, one term per line. Reports name a hit as "term #3", never the term itself.
 - `--out DIR` sets where reports, screenshots and the repo clone cache go.
 

@@ -71,3 +71,26 @@ def test_cv_form_fails_when_languagetool_is_down(ctx, cv, monkeypatch):
     ctx.http.post = lambda *a, **k: FakeResponse(status=503, text="busy")
     result = cv_form.run(ctx, cv)
     assert result.status == FAIL and any("spelling check unavailable" in e for e in result.evidence)
+
+
+def test_spellcheck_text_splits_paragraphs_and_tab_columns():
+    text = "PROJECTS\nReleased\tQuestify web app\n•\tBullet text"
+    assert cv_form.spellcheck_text(text) == "PROJECTS\n\nReleased\n\nQuestify web app\n\nBullet text"
+
+
+def test_span_allowlist_exempts_a_quoted_passage_only(ctx, cv, monkeypatch):
+    monkeypatch.setattr(cv_form, "pdf_pages", _pages(1))
+    ctx.config.allowlist.append("span: German, English.")
+
+    def matches(text):
+        inside = text.index("German")
+        outside = text.index("Pharmacy")
+        return [
+            {"offset": inside, "length": 6, "rule": {"id": "TYPO"}, "message": "typo"},
+            {"offset": outside, "length": 8, "rule": {"id": "TYPO"}, "message": "typo"},
+        ]
+
+    ctx.http.post = _lt(matches)
+    result = cv_form.run(ctx, cv)
+    issues = [e for e in result.evidence if e.startswith("  TYPO")]
+    assert result.status == FAIL and len(issues) == 1 and "Pharmacy" in issues[0]

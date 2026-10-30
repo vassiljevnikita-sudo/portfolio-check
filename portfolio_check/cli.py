@@ -13,7 +13,7 @@ from pathlib import Path
 from . import __version__
 from .checks import CHECKS, canonical
 from .checks.denylist import load_terms
-from .config import load_config
+from .config import load_config, read_allowlist
 from .context import Context
 from .report import counts, write_reports
 from .result import FAIL, SKIP, CheckResult
@@ -36,6 +36,9 @@ def build_parser() -> argparse.ArgumentParser:
                    help="use a local checkout (repo) or file (CV) instead of the public source; repeatable")
     p.add_argument("--cv-de", metavar="PATH", help="German CV .docx (or env PORTFOLIO_CV_DE)")
     p.add_argument("--cv-en", metavar="PATH", help="English CV .docx (or env PORTFOLIO_CV_EN)")
+    p.add_argument("--allowlist-file", action="append", default=[], metavar="FILE",
+                   help="extra LanguageTool allowlist kept outside the repo (names, addresses); "
+                        "repeatable, or env PORTFOLIO_ALLOWLIST")
     p.add_argument("--require-cv", action="store_true", help="fail CV checks when no CV file is found instead of skipping")
     p.add_argument("--list", action="store_true", help="list checks and targets, then exit")
     p.add_argument("--version", action="version", version=f"portfolio-check {__version__}")
@@ -95,6 +98,16 @@ def main(argv: list[str] | None = None) -> int:
         local["cv-de"] = Path(args.cv_de).expanduser().resolve()
     if args.cv_en:
         local["cv-en"] = Path(args.cv_en).expanduser().resolve()
+
+    extra_allow = list(args.allowlist_file)
+    if os.environ.get("PORTFOLIO_ALLOWLIST"):
+        extra_allow.append(os.environ["PORTFOLIO_ALLOWLIST"])
+    for item in extra_allow:
+        path = Path(item).expanduser()
+        if not path.is_file():
+            print(f"allowlist file not found: {path}", file=sys.stderr)
+            return 2
+        config.allowlist.extend(read_allowlist(path))
 
     if args.denylist_file:
         terms = load_terms(Path(args.denylist_file).read_text(encoding="utf-8"))

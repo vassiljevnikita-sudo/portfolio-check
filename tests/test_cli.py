@@ -42,6 +42,7 @@ def test_any_failure_exits_1(tmp_path):
     assert main([*args, "--check", "readme"]) == 1
     report = json.loads((tmp_path / "out" / "report.json").read_text())
     assert report["counts"] == {"pass": 1, "fail": 1, "skip": 1}
+    assert "A skipped check did not run. It is not a pass." in (tmp_path / "out" / "report.md").read_text()
 
 
 def test_unknown_check_or_target_exits_2(tmp_path):
@@ -58,3 +59,22 @@ def test_shipped_targets_file_loads():
     qbd = config.target("qbd-demo")
     assert qbd.min_numbers == 4 and "Keine Messwerte" in qbd.forbidden_phrases
     assert config.cv_rules["max_pages"] == 2
+
+
+def test_allowlist_file_extends_the_allowlist(tmp_path, monkeypatch):
+    args = _setup(tmp_path)
+    private = tmp_path / "private-allowlist.txt"
+    private.write_text("# names that stay out of the repo\nMusterstrasse\n")
+    seen = {}
+    import portfolio_check.cli as cli
+
+    real = cli.Context
+
+    def spy(**kw):
+        seen["allowlist"] = list(kw["config"].allowlist)
+        return real(**kw)
+
+    monkeypatch.setattr(cli, "Context", spy)
+    assert main([*args, "--check", "readme", "--target", "good", "--allowlist-file", str(private)]) == 0
+    assert "Musterstrasse" in seen["allowlist"]
+    assert main([*args, "--check", "readme", "--allowlist-file", str(tmp_path / "missing.txt")]) == 2

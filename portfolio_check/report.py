@@ -40,6 +40,10 @@ def write_reports(results: list[CheckResult], out_dir: Path, meta: dict) -> tupl
         f"Run {started} · overall **{overall.upper()}** · "
         f"{c[PASS]} pass, {c[FAIL]} fail, {c[SKIP]} skipped",
         "",
+    ]
+    if c[SKIP]:
+        lines += ["A skipped check did not run. It is not a pass.", ""]
+    lines += [
         "| Check | Target | Result | Summary |",
         "| --- | --- | --- | --- |",
     ]

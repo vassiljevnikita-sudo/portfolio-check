@@ -24,8 +24,11 @@ def cv_precheck(ctx, cv, check_name):
     return skipped(
         check_name,
         cv.name,
-        "skipped (no CV provided)",
-        [f"default path {cv.path} not present; pass --{cv.name} PATH or set {cv.env or 'the env var'}"],
+        "skipped: no CV path given",
+        [
+            "not a pass: this check did not run",
+            f"default path {cv.path} not present; pass --{cv.name} PATH or set {cv.env or 'the env var'}",
+        ],
     )
 
 

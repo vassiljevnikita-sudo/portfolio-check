@@ -1,4 +1,6 @@
 # Technical terms LanguageTool may flag as misspelled. One term per line, case-insensitive.
+# "span: TEXT" exempts an exact passage. Names and addresses go in a private file passed
+# with --allowlist-file, never here.
 GAMP
 GMP
 GDP
