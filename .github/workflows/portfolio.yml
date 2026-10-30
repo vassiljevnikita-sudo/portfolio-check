@@ -8,9 +8,10 @@ on:
     branches: [main]
   workflow_dispatch:
   schedule:
-    # GitHub cron runs in UTC. 05:00 UTC is 06:00 in Berlin during winter time (CET).
-    # During summer time (CEST, late March to late October) the run starts at 07:00 Berlin.
-    - cron: "0 5 * * *"
+    # GitHub cron runs in UTC. 05:17 UTC is 06:17 in Berlin during winter time (CET),
+    # 07:17 during summer time (CEST). Off the full hour because GitHub delays or drops
+    # scheduled runs when load peaks at the top of the hour.
+    - cron: "17 5 * * *"
 
 permissions:
   contents: read

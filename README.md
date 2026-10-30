@@ -48,7 +48,7 @@ Python 3.10+, requests, Playwright with Chromium, gitleaks, python-docx, LibreOf
 - github.com rate-limits anonymous page requests from shared runners (HTTP 429). When a repository, file or folder link on github.com still gets 429 after three retries, the check asks the GitHub API instead and passes only if the repository is public and the file exists at that ref. The report marks such links as "verified via GitHub API". Other github.com links that stay at 429 still fail.
 - Expo's free-tier hosting (`*.expo.app`) answers bursts of requests with 429. The link check sends one request at a time to each `*.expo.app` host and, when the answer has no `Retry-After`, waits 10, 20 and 40 seconds between retries. A link that still gets 429 fails as "throttled by host". The demo-render check loads each page once in a browser and has no retry.
 - Denylist matching is a plain substring search, so short terms also hit inside longer words. The report marks those hits.
-- GitHub cron runs in UTC, so the daily run starts at 06:00 Berlin time in winter and 07:00 in summer.
+- GitHub cron runs in UTC, so the daily run starts at 06:17 Berlin time in winter and 07:17 in summer. It is set off the full hour because GitHub delays or skips scheduled runs at peak times.
 
 ## Usage
 
@@ -75,7 +75,7 @@ Repos are cloned anonymously with credential helpers switched off, so a private 
 ## CI
 
 - [`test.yml`](.github/workflows/test.yml) runs the unit tests and checks this README on every push and pull request. It is this repo's CI status.
-- [`portfolio.yml`](.github/workflows/portfolio.yml) runs `--all` on push to `main`, on demand and daily at 05:00 UTC. It has no CV files, so the CV checks are skipped there. It fails when any check fails and uploads `report.md`, `report.json` and the screenshots as the `portfolio-report` artifact.
+- [`portfolio.yml`](.github/workflows/portfolio.yml) runs `--all` on push to `main`, on demand and daily at 05:17 UTC. It has no CV files, so the CV checks are skipped there. It fails when any check fails and uploads `report.md`, `report.json` and the screenshots as the `portfolio-report` artifact.
 - GitHub switches off scheduled workflows in a public repo after 60 days without repository activity. The `keepalive` job in `portfolio.yml` therefore calls the API endpoint that enables the workflow on every run. If the daily runs ever stop anyway, re-enable the workflow on the Actions tab.
 
 ## Development
