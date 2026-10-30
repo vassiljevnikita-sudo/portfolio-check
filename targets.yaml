@@ -6,6 +6,13 @@ settings:
   readme_first_screen_lines: 60   # "first screen" of a README
   cv_rules: cv_rules.yaml
   languagetool_allowlist: allowlist.txt
+  # Hosts that refuse requests from GitHub's runners. Only on a CI runner, a listed
+  # status from a listed host is reported as "not verified from CI" instead of failing.
+  # A local run still needs status 200 for the same URL.
+  link_exceptions:
+    - host: scholar.google.com
+      status: [403]
+      reason: Google Scholar answers 403 to GitHub Actions runners; the same URL returns 200 from a home connection
 
 repos:
   - name: complaint-dossier

@@ -107,3 +107,34 @@ def test_cv_links_include_relationships_and_typed_urls(ctx, tmp_path):
     assert "https://rel.example/profile" in found
     assert "https://github.com/someone" in found
     assert "https://www.typed.example/page" in found
+
+
+def _scholar_case(ctx, tmp_path, monkeypatch, on_ci):
+    repo = _repo(ctx, tmp_path, "# X\n[s](https://scholar.google.com/citations?user=x) [o](https://other.example/)\n")
+    ctx.config.link_exceptions = [{"host": "scholar.google.com", "status": [403], "reason": "blocks runners"}]
+    monkeypatch.setenv("GITHUB_ACTIONS", "true" if on_ci else "false")
+    return repo
+
+
+def test_link_exception_reports_unverified_on_ci_runner(ctx, tmp_path, monkeypatch):
+    repo = _scholar_case(ctx, tmp_path, monkeypatch, on_ci=True)
+    ctx.fetch = _fake_fetch({"https://scholar.google.com/citations?user=x": 403, "https://other.example/": 200})
+    result = links.run(ctx, repo)
+    assert result.status == PASS, result.evidence
+    assert result.data == {"checked": 2, "broken": 0, "unverified": 1}
+    assert "not verified from CI: blocks runners" in "\n".join(result.evidence)
+
+
+def test_link_exception_does_not_apply_locally_or_to_other_statuses(ctx, tmp_path, monkeypatch):
+    repo = _scholar_case(ctx, tmp_path, monkeypatch, on_ci=False)
+    ctx.fetch = _fake_fetch({"https://scholar.google.com/citations?user=x": 403, "https://other.example/": 200})
+    assert links.run(ctx, repo).status == FAIL
+
+    monkeypatch.setenv("GITHUB_ACTIONS", "true")
+    ctx.fetch = _fake_fetch({"https://scholar.google.com/citations?user=x": 404, "https://other.example/": 200})
+    assert links.run(ctx, repo).status == FAIL
+
+    ctx.fetch = _fake_fetch({"https://scholar.google.com/citations?user=x": 403, "https://other.example/": 403})
+    result = links.run(ctx, repo)
+    assert result.status == FAIL
+    assert result.data["broken"] == 1 and result.data["unverified"] == 1

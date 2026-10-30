@@ -1,10 +1,16 @@
 """Links: every URL in READMEs, sites and CVs opens without a login.
 
 Pass when each URL answers 200 within the timeout and no redirect ends on a login page.
+
+settings.link_exceptions in targets.yaml lists hosts that refuse requests from cloud
+runners. On a GitHub Actions runner only, a listed status from a listed host is reported
+as "not verified from CI" with its reason instead of failing. Run locally, the same URL
+still has to return 200.
 """
 
 from __future__ import annotations
 
+import os
 import re
 import threading
 import time
@@ -89,6 +95,24 @@ def check_url(ctx: Context, url: str, sleep=time.sleep) -> tuple[bool, str]:
     return False, f"ERR {url}: {last_error}"
 
 
+def on_ci_runner() -> bool:
+    return os.environ.get("GITHUB_ACTIONS") == "true"
+
+
+def link_exception(ctx: Context, url: str, line: str) -> dict | None:
+    """The link_exceptions entry that covers this failed URL on a CI runner, if any."""
+    if not on_ci_runner():
+        return None
+    status = line.split(" ", 1)[0]
+    if not status.isdigit():
+        return None
+    host = urlparse(url).netloc.lower()
+    for entry in ctx.config.link_exceptions:
+        if host == entry["host"] and int(status) in entry["status"]:
+            return entry
+    return None
+
+
 def collect(ctx: Context, target) -> tuple[list[str], list[str]]:
     """(urls to fetch, evidence notes). Raises TargetUnavailable."""
     notes: list[str] = []
@@ -154,11 +178,25 @@ def run(ctx: Context, target):
     with ThreadPoolExecutor(max_workers=8) as pool:
         results = list(pool.map(lambda u: check_url(ctx, u), to_fetch))
     ok_lines = [line for ok, line in results if ok]
-    bad.extend(line for ok, line in results if not ok)
+    unverified: list[str] = []
+    for url, (ok, line) in zip(to_fetch, results):
+        if ok:
+            continue
+        entry = link_exception(ctx, url, line)
+        if entry:
+            unverified.append(f"{line} (not verified from CI: {entry['reason']})")
+        else:
+            bad.append(line)
 
     total = len(to_fetch) + len([b for b in bad if b.startswith(("MISSING", "INVALID"))])
-    evidence = bad + ok_lines + notes + evidence
+    evidence = bad + unverified + ok_lines + notes + evidence
     data = {"checked": len(to_fetch), "broken": len(bad)}
+    if unverified:
+        data["unverified"] = len(unverified)
     if bad:
         return failed(NAME, target.name, f"{len(bad)} of {total} links broken", evidence, **data)
+    if unverified:
+        summary = (f"{total - len(unverified)} of {total} links return 200; "
+                   f"{len(unverified)} not verified from CI (link_exceptions)")
+        return passed(NAME, target.name, summary, evidence, **data)
     return passed(NAME, target.name, f"all {total} links return 200", evidence, **data)
