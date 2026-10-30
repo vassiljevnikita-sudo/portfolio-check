@@ -55,6 +55,15 @@ sites:
       # invite banner text; must only show with an invite code in the URL
       - lädt dich zu Questify ein
     min_numbers: 0
+    # Screenshots that showed HTTP 429 on 30 Oct 2026: the hero phone, the
+    # leaderboard phone and the three other Looks tiles. Matched by file name, so
+    # both the old shots/ and the current phone-model/screens/ paths count.
+    required_images:
+      - /arena/start.webp
+      - /arena/rangliste.webp
+      - /bonbon/start.webp
+      - /sternenstaub/start.webp
+      - /classic/start.webp
 
   - name: qbd-demo
     url: https://simple-light-qbd.expo.app/

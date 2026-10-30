@@ -15,6 +15,7 @@ from pathlib import Path
 import requests
 
 from .config import Config, CvTarget, RepoTarget, SiteTarget
+from .images import scroll_through, wait_for_images
 
 USER_AGENT = (
     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -35,6 +36,11 @@ class RenderResult:
     links: list[str]
     screenshot: str | None = None
     error: str | None = None
+    # One dict per <img> after the image wait (see images.IMAGES_JS).
+    images: list[dict] = field(default_factory=list)
+    # HTTP status (or "failed: ...") of every image response, by URL, in order.
+    image_responses: dict[str, list] = field(default_factory=dict)
+    image_wait: float = 0.0
 
 
 @dataclass
@@ -150,7 +156,25 @@ class Context:
             # Fresh context per site: no cookies, no storage, like a first visit.
             context = self._browser.new_context(viewport={"width": 1280, "height": 900})
             page = context.new_page()
+            responses: dict[str, list] = {}
+
+            def on_response(response):
+                if response.request.resource_type == "image":
+                    responses.setdefault(response.url, []).append(response.status)
+
+            def on_failed(request):
+                if request.resource_type == "image":
+                    responses.setdefault(request.url, []).append(f"failed: {request.failure}")
+
+            page.on("response", on_response)
+            page.on("requestfailed", on_failed)
             page.goto(site.url, wait_until="networkidle", timeout=60_000)
+            # Scroll like a visitor so lazy images load, then give slow or retrying
+            # images a bounded time before judging them.
+            scroll_through(page)
+            images, waited = wait_for_images(page, site.required_images, site.image_wait)
+            page.evaluate("() => window.scrollTo(0, 0)")
+            page.wait_for_timeout(500)
             shots = self.out_dir / "screenshots"
             shots.mkdir(parents=True, exist_ok=True)
             shot = shots / f"{site.name}.png"
@@ -162,6 +186,9 @@ class Context:
                 html=page.content(),
                 links=page.eval_on_selector_all("a[href]", "els => els.map(e => e.href)"),
                 screenshot=str(shot.relative_to(self.out_dir)),
+                images=images,
+                image_responses=responses,
+                image_wait=round(waited, 1),
             )
             context.close()
             return result

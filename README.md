@@ -19,7 +19,7 @@ The run prints one line per check, writes `report.md` and `report.json`, and exi
 | Check | Passes when |
 | --- | --- |
 | `links` | every URL in a README, site or CV answers 200 within 10 s and does not redirect to a login page |
-| `render` | the site, opened in headless Chromium, shows the required phrases and links, none of the forbidden ones, and enough numbers |
+| `render` | the site, opened in headless Chromium, shows the required phrases and links, none of the forbidden ones, and enough numbers; after scrolling through the page, no shown image is broken and every image listed under `required_images` has loaded |
 | `readme` | the first 60 lines of a README hold a problem statement, a screenshot, a "Try it" command, "My role", the tech stack and the limitations |
 | `secrets` | gitleaks finds nothing in the full git history |
 | `denylist` | none of the private terms appears in a repo (files and history) or on a site |
@@ -46,7 +46,7 @@ Python 3.10+, requests, Playwright with Chromium, gitleaks, python-docx, LibreOf
 - CV files hold personal data and are not stored here. CI therefore skips the CV checks (`skipped: no CV path given`), and the report says that a skip is not a pass. I check the CVs locally before sending them, with the CV command under Usage.
 - Any status other than 200 counts as broken, including sites that block automated requests. One exception, listed under `link_exceptions` in `targets.yaml`: Google Scholar answers 403 to GitHub's runners, so CI reports that link as "not verified from CI" instead of failing. A local run still needs 200.
 - github.com rate-limits anonymous page requests from shared runners (HTTP 429). When a repository, file or folder link on github.com still gets 429 after three retries, the check asks the GitHub API instead and passes only if the repository is public and the file exists at that ref. The report marks such links as "verified via GitHub API". Other github.com links that stay at 429 still fail.
-- Expo's free-tier hosting (`*.expo.app`) answers bursts of requests with 429. The link check sends one request at a time to each `*.expo.app` host and, when the answer has no `Retry-After`, waits 10, 20 and 40 seconds between retries. A link that still gets 429 fails as "throttled by host". The demo-render check loads each page once in a browser and has no retry.
+- Expo's free-tier hosting (`*.expo.app`) answers bursts of requests with 429. The link check sends one request at a time to each `*.expo.app` host and, when the answer has no `Retry-After`, waits 10, 20 and 40 seconds between retries. A link that still gets 429 fails as "throttled by host". The demo-render check loads each page once and does not reload it. It scrolls through the page and waits up to 45 seconds (`image_wait`) for images, so retries inside the page can finish. An image that is shown (it has a layout box) and stays broken, `complete` with `naturalWidth` 0, fails the check. The report lists its URL and the HTTP status of every request for that file. An image that loaded only after failed requests is listed as a note.
 - Denylist matching is a plain substring search, so short terms also hit inside longer words. The report marks those hits.
 - GitHub cron runs in UTC, so the daily run starts at 06:17 Berlin time in winter and 07:17 in summer. It is set off the full hour because GitHub delays or skips scheduled runs at peak times.
 
@@ -85,4 +85,4 @@ pip install -e ".[dev]"
 pytest
 ```
 
-The tests mock the network, gitleaks, LibreOffice and LanguageTool, so they run offline in about a second. Test data is synthetic.
+The tests mock the network, gitleaks, LibreOffice and LanguageTool, so they run offline in a few seconds. Test data is synthetic. `tests/test_render_browser.py` opens two pages from a local server in Chromium, one with an image that always answers 429. It is skipped when Chromium is not installed (`python -m playwright install chromium`).
