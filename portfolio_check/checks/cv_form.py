@@ -7,10 +7,12 @@ outside the allowlist of technical terms.
 
 from __future__ import annotations
 
+import os
 import re
 import shutil
 import subprocess
 import tempfile
+import zipfile
 from pathlib import Path
 
 import requests
@@ -51,6 +53,92 @@ def _in_span(chunk: str, offset: int, length: int, spans: list[str]) -> bool:
     return False
 
 
+# Microsoft Office fonts and the open fonts LibreOffice should use when the original is
+# not installed (Linux, CI). Carlito, Caladea and Liberation have the same character
+# widths as the fonts they replace. Calibri Light has no open twin; Carlito is close.
+# Without this map fontconfig picks any sans font for "Calibri Light" (Inter on one
+# machine, 30 Oct 2026), which made a 2-page CV export as 3 pages.
+METRIC_STANDINS = {
+    "Calibri": "Carlito",
+    "Calibri Light": "Carlito",
+    "Cambria": "Caladea",
+    "Arial": "Liberation Sans",
+    "Times New Roman": "Liberation Serif",
+    "Courier New": "Liberation Mono",
+}
+# Latin text only: w:ascii / w:hAnsi on runs and styles, a:latin in the theme. The
+# theme also names a font for every other script (Thai, Hangul, ...), which a Latin CV
+# never renders and which would bury the report in irrelevant substitutions.
+RUN_FONT = re.compile(r'w:(?:ascii|hAnsi)="([^"]+)"')
+THEME_FONT = re.compile(r'<a:latin typeface="([^"]+)"')
+FONT_PARTS = ("word/document.xml", "word/styles.xml", "word/header1.xml", "word/footer1.xml")
+
+
+def docx_fonts(path: Path) -> set[str]:
+    """Latin font families the document asks for: runs, styles and the theme."""
+    fonts: set[str] = set()
+    with zipfile.ZipFile(path) as z:
+        names = set(z.namelist())
+        for part in FONT_PARTS:
+            if part in names:
+                fonts.update(RUN_FONT.findall(z.read(part).decode("utf-8", "replace")))
+        if "word/theme/theme1.xml" in names:
+            fonts.update(THEME_FONT.findall(z.read("word/theme/theme1.xml").decode("utf-8", "replace")))
+    return {f for f in fonts if f.strip()}
+
+
+def fontconfig_file(directory: Path) -> Path:
+    """A fontconfig file that adds each stand-in after its original font.
+
+    `accept` keeps the original when it is installed (a Windows or Mac machine with
+    Office) and uses the stand-in only when it is missing.
+    """
+    aliases = "".join(
+        f"<alias binding=\"same\"><family>{src}</family><accept><family>{dst}</family></accept></alias>"
+        for src, dst in METRIC_STANDINS.items()
+    )
+    conf = directory / "fonts.conf"
+    conf.write_text(
+        '<?xml version="1.0"?><!DOCTYPE fontconfig SYSTEM "fonts.dtd"><fontconfig>'
+        '<include ignore_missing="yes">/etc/fonts/fonts.conf</include>'
+        f"{aliases}</fontconfig>",
+        encoding="utf-8",
+    )
+    return conf
+
+
+def _fc_match(family: str, conf: Path) -> str | None:
+    """The family fontconfig renders for `family`, or None without fontconfig."""
+    binary = shutil.which("fc-match")
+    if not binary:
+        return None
+    proc = subprocess.run(
+        [binary, "-f", "%{family[0]}", family], capture_output=True, text=True, timeout=20,
+        env={**os.environ, "FONTCONFIG_FILE": str(conf)},
+    )
+    return proc.stdout.strip() or None
+
+
+def font_notes(docx: Path) -> tuple[list[str], list[str]]:
+    """(stand-ins used, fonts with no metric stand-in) for the fonts the CV asks for.
+
+    Empty lists where fontconfig is not available (Windows), since there the installed
+    Office fonts are used as they are.
+    """
+    standins, fallbacks = [], []
+    with tempfile.TemporaryDirectory() as tmp:
+        conf = fontconfig_file(Path(tmp))
+        for font in sorted(docx_fonts(docx)):
+            got = _fc_match(font, conf)
+            if got is None or got.lower() == font.lower():
+                continue
+            if got == METRIC_STANDINS.get(font):
+                standins.append(f"{font} → {got}")
+            else:
+                fallbacks.append(f"{font} → {got}")
+    return standins, fallbacks
+
+
 def pdf_pages(ctx, docx: Path) -> tuple[int, Path]:
     """Convert with LibreOffice headless and count pages. Raises RuntimeError."""
     binary = shutil.which(ctx.soffice_bin) or shutil.which("libreoffice")
@@ -59,10 +147,11 @@ def pdf_pages(ctx, docx: Path) -> tuple[int, Path]:
     outdir = ctx.out_dir / "cv-pdf"
     outdir.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory() as profile:
+        env = {**os.environ, "FONTCONFIG_FILE": str(fontconfig_file(Path(profile)))}
         proc = subprocess.run(
-            [binary, f"-env:UserInstallation=file://{profile}", "--headless",
+            [binary, f"-env:UserInstallation=file://{profile}/lo", "--headless",
              "--convert-to", "pdf", "--outdir", str(outdir), str(docx)],
-            capture_output=True, text=True, timeout=240,
+            capture_output=True, text=True, timeout=240, env=env,
         )
     pdf = outdir / (docx.stem + ".pdf")
     if proc.returncode != 0 or not pdf.exists():
@@ -128,9 +217,20 @@ def run(ctx, cv):
     problems: list[str] = []
     info: list[str] = []
 
+    standins, fallbacks = font_notes(path)
+    if standins:
+        info.append("fonts not installed, rendered with metric stand-ins: " + ", ".join(standins))
+    if fallbacks:
+        info.append(
+            "fonts not installed and without a metric stand-in: " + ", ".join(fallbacks)
+            + "; the page count may differ from Word"
+        )
+
     try:
         pages, pdf = pdf_pages(ctx, path)
         line = f"{pages} page(s) as PDF ({pdf.relative_to(ctx.out_dir)}), limit {max_pages}"
+        if pages > max_pages and fallbacks:
+            line += " (may be caused by the substituted fonts above; check in Word)"
         (problems if pages > max_pages else info).append(line)
     except (RuntimeError, subprocess.TimeoutExpired) as exc:
         problems.append(f"page count unavailable: {exc}")

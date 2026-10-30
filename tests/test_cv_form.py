@@ -94,3 +94,51 @@ def test_span_allowlist_exempts_a_quoted_passage_only(ctx, cv, monkeypatch):
     result = cv_form.run(ctx, cv)
     issues = [e for e in result.evidence if e.startswith("  TYPO")]
     assert result.status == FAIL and len(issues) == 1 and "Pharmacy" in issues[0]
+
+
+# ------------------------------------------------------------- font stand-ins
+
+
+def _docx_with_font(path, font):
+    import zipfile
+
+    from .cv_factory import make_cv
+
+    src = make_cv(path.with_name("base.docx"))
+    with zipfile.ZipFile(src) as zin, zipfile.ZipFile(path, "w") as zout:
+        for item in zin.infolist():
+            data = zin.read(item.filename)
+            if item.filename == "word/document.xml":
+                data = data.replace(b"<w:r>", f'<w:r><w:rPr><w:rFonts w:ascii="{font}" w:hAnsi="{font}"/></w:rPr>'.encode(), 1)
+            zout.writestr(item, data)
+    return path
+
+
+def test_docx_fonts_reads_run_fonts(tmp_path):
+    path = _docx_with_font(tmp_path / "light.docx", "Calibri Light")
+    assert "Calibri Light" in cv_form.docx_fonts(path)
+
+
+def test_fontconfig_file_keeps_original_and_adds_standin(tmp_path):
+    text = cv_form.fontconfig_file(tmp_path).read_text()
+    assert "<family>Calibri Light</family><accept><family>Carlito</family></accept>" in text
+    assert '<include ignore_missing="yes">/etc/fonts/fonts.conf</include>' in text
+
+
+def test_font_notes_separates_standins_from_fallbacks(tmp_path, monkeypatch):
+    monkeypatch.setattr(cv_form, "docx_fonts", lambda p: {"Calibri Light", "Aptos", "Carlito"})
+    rendered = {"Calibri Light": "Carlito", "Aptos": "Inter", "Carlito": "Carlito"}
+    monkeypatch.setattr(cv_form, "_fc_match", lambda family, conf: rendered[family])
+    standins, fallbacks = cv_form.font_notes(tmp_path / "cv.docx")
+    assert standins == ["Calibri Light → Carlito"]
+    assert fallbacks == ["Aptos → Inter"]
+
+
+def test_page_failure_points_at_substituted_fonts(ctx, cv, monkeypatch):
+    monkeypatch.setattr(cv_form, "pdf_pages", _pages(3))
+    monkeypatch.setattr(cv_form, "font_notes", lambda p: ([], ["Aptos → Inter"]))
+    ctx.http.post = _lt(lambda text: [])
+    result = cv_form.run(ctx, cv)
+    joined = "\n".join(result.evidence)
+    assert result.status == FAIL
+    assert "Aptos → Inter" in joined and "check in Word" in joined

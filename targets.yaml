@@ -24,6 +24,12 @@ repos:
     # release-only repo (APK downloads); checked by links and README, not CI
     skip_checks: [ci]
     skip_reason: release-only repo without a build, so there is no CI run to check
+  - name: life-os-showcase
+    slug: vassiljevnikita-sudo/life-os-showcase
+    # linked from the CV and the profile since 30 Oct 2026; screenshots and videos of
+    # a private app, so there is nothing to try and no build
+    skip_checks: [readme, ci]
+    skip_reason: screenshot gallery of a private app without code or build; checked by links, secrets and denylist
   - name: profile
     slug: vassiljevnikita-sudo/vassiljevnikita-sudo
     # the profile README is a landing page for three projects, not a project README
