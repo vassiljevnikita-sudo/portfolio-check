@@ -43,19 +43,23 @@ repos:
     skip_reason: side project with a German README, not one of the portfolio projects; checked for secrets, denylist and CI
 
 sites:
-  # The landing page as restored on 30 Oct 2026 (the version with the 3D phone).
+  # The landing page as restored on 30 Oct 2026 (the version with the 3D phone),
+  # with the later text fixes of the same day: iOS opens the web app, the footer
+  # GitHub link goes to the public questify-releases repo.
   # The render check cannot test the WebGL canvas, so the 3D phone is not checked here.
   - name: questify
     url: https://mastertasker.expo.app/willkommen/
     required_phrases:
       - bringen jetzt XP
       - Kostenlos auf Android und im Web
+      - Auf dem iPhone öffnest du Questify im Browser
       - Vier Looks
       - Noch Fragen
       - Impressum
       - Datenschutz
     required_links:
       - https://github.com/vassiljevnikita-sudo/questify-releases/releases/latest/download/questify.apk
+      - https://github.com/vassiljevnikita-sudo/questify-releases
       - https://mastertasker.expo.app/
       - https://mastertasker.expo.app/website/5/impressum.html
       - https://mastertasker.expo.app/website/5/datenschutz.html
