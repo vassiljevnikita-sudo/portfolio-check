@@ -21,14 +21,14 @@ repos:
     slug: vassiljevnikita-sudo/simple-and-light-research
   - name: questify-releases
     slug: vassiljevnikita-sudo/questify-releases
-    # release-only repo (APK downloads); WP4 accepts it by links and README, not CI
+    # release-only repo (APK downloads); checked by links and README, not CI
     skip_checks: [ci]
-    skip_reason: release-only repo without a build; WP4 does not require CI
+    skip_reason: release-only repo without a build, so there is no CI run to check
   - name: profile
     slug: vassiljevnikita-sudo/vassiljevnikita-sudo
     # the profile README is a landing page for three projects, not a project README
     skip_checks: [readme, ci]
-    skip_reason: GitHub profile README; WP5 accepts it by links and pins
+    skip_reason: GitHub profile README, a landing page rather than a project; checked by links only
   - name: portfolio-check
     slug: vassiljevnikita-sudo/portfolio-check
     # portfolio.yml is the report itself; the repo's own CI is the unit-test workflow.
