@@ -37,8 +37,10 @@ repos:
     slug: vassiljevnikita-sudo/safeincloud-linux
     # side project outside the job portfolio, listed so that every public repo of mine
     # (forks excluded) gets the secret and denylist scans
-    skip_checks: [readme]
-    skip_reason: side project with a German README, not one of the portfolio projects; checked for links, secrets, denylist and CI
+    # links skipped: its 14 README links are github.com pages, and that many extra
+    # requests got a 429 from GitHub on the Actions runner (run 40996556362)
+    skip_checks: [readme, links]
+    skip_reason: side project with a German README, not one of the portfolio projects; checked for secrets, denylist and CI
 
 sites:
   - name: questify
