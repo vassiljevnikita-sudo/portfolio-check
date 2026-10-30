@@ -1,0 +1,19 @@
+.venv/
+__pycache__/
+*.egg-info/
+.pytest_cache/
+build/
+dist/
+# run output
+out/
+report.md
+report.json
+screenshots/
+.portfolio-check-cache/
+# CV files carry personal contact data: keep them local only
+cv/*
+!cv/.gitkeep
+# never commit denylist terms
+denylist*.txt
+private/
+.env
