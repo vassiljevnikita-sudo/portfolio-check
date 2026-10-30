@@ -70,11 +70,22 @@ sites:
     required_phrases:
       - Nikita Vassiljev
       - Research only, no real capital, no investment advice
+      # the restored chart cards and their labels
+      - Live-Demo
+      - Leader5
+      - Trading 212
+      - Trades
     required_links:
       - https://github.com/vassiljevnikita-sudo/simple-and-light-research
+    # Charts and trades load after the page; after network idle none of their
+    # empty, error or loading texts may remain.
     forbidden_phrases:
       - Keine Messwerte
       - Keine ausgeführten Trades
+      - Messwerte nicht verfügbar
+      - Historie nicht verfügbar
+      - Trades nicht verfügbar
+      - Lädt
     forbidden_patterns:
       # a line that holds nothing but a dash placeholder (em dash, en dash or hyphen)
       - "^\\s*[—–-]\\s*$"
