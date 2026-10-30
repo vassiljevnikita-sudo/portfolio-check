@@ -4,8 +4,8 @@ from docx import Document
 
 GOOD_EN = [
     ("h", "Profile"),
-    ("p", "Pharmacy student who builds AI tools for quality assurance work. Available full-time "
-          "15.02.2027 to 11.04.2027, up to 20 hours a week from 12.04.2027, full-time from 18.07.2027."),
+    ("p", "Pharmacy student who builds AI tools for quality assurance work. Available up to "
+          "15 hours a week from 01.02.2027 to 30.06.2027, full-time from 15.09.2027."),
     ("h", "Projects"),
     ("p", "Questify: task app released for Android and web."),
     ("p", "Complaint Dossier: PowerShell workflow designed along GAMP 5 principles for GMP work."),
