@@ -55,9 +55,14 @@ def test_shipped_targets_file_loads():
     config = load_config(ROOT / "targets.yaml")
     names = {t.name for t in config.targets}
     assert {"complaint-dossier", "simple-and-light-research", "questify-releases", "profile",
-            "portfolio-check", "questify", "qbd-demo", "cv-de", "cv-en"} <= names
+            "portfolio-check", "questify", "qbd-demo", "qbd-demo-graphen", "qbd-demo-entwicklung",
+            "cv-de", "cv-en"} <= names
     qbd = config.target("qbd-demo")
-    assert qbd.min_numbers == 150 and "Keine Messwerte" in qbd.forbidden_phrases
+    assert qbd.min_numbers == 2 and "Keine Messwerte" in qbd.forbidden_phrases
+    graphs = config.target("qbd-demo-graphen")
+    assert graphs.url.endswith("/graphen") and graphs.min_numbers == 60
+    assert "Keine Messwerte" in graphs.forbidden_phrases and graphs.forbidden_patterns
+    assert config.target("qbd-demo-entwicklung").min_numbers == 100
     assert config.cv_rules["max_pages"] == 2
 
 
