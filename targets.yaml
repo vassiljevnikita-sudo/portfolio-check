@@ -33,6 +33,12 @@ repos:
     slug: vassiljevnikita-sudo/portfolio-check
     # portfolio.yml is the report itself; the repo's own CI is the unit-test workflow.
     ci_workflows: [test.yml]
+  - name: safeincloud-linux
+    slug: vassiljevnikita-sudo/safeincloud-linux
+    # side project outside the job portfolio, listed so that every public repo of mine
+    # (forks excluded) gets the secret and denylist scans
+    skip_checks: [readme]
+    skip_reason: side project with a German README, not one of the portfolio projects; checked for links, secrets, denylist and CI
 
 sites:
   - name: questify
