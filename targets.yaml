@@ -86,7 +86,11 @@ sites:
     required_phrases:
       - Nikita Vassiljev
       - Research only, no real capital, no investment advice
-      - "Result: not so far"
+      # since 30 Oct 2026 (simple-and-light PR #67): status, Quality by Design and the Leader5 caveat
+      - Quality by Design
+      - "Status: work in progress"
+      - Leader5
+      - not an independent test
       # the header navigation to the other two views
       - Graphen & Trades
       - Entwicklung
@@ -104,8 +108,9 @@ sites:
     forbidden_patterns: &qbd_dash
       # a line that holds nothing but a dash placeholder (em dash, en dash or hyphen)
       - "^\\s*[—–-]\\s*$"
-    # the Start view is text only: the model count in German and English (2.790 / 2,790)
-    min_numbers: 2
+    # the Start view is text only: model count and Leader5 figures in German and English
+    # (14 on 30 Oct 2026 after PR #67); 10 fails if the Leader5 sentences disappear
+    min_numbers: 10
 
   - name: qbd-demo-graphen
     url: https://simple-light-qbd.expo.app/graphen
