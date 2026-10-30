@@ -1,0 +1,28 @@
+# Unit tests. This workflow is the repo's own CI status: it must stay green.
+# The full portfolio run lives in portfolio.yml and is expected to fail while
+# portfolio work packages are open.
+name: test
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install
+        run: pip install -e ".[dev]"
+      - name: Unit tests
+        run: pytest -q
+      - name: This README meets the README contract
+        run: python -m portfolio_check --check readme --target portfolio-check --local portfolio-check=. --out out

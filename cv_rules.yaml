@@ -1,0 +1,82 @@
+# Rules for the CV content and CV form checks.
+# Each claim mirrors a row of the claim ledger in the Portfolio & CV Build Plan.
+# Patterns are case-insensitive regular expressions; all patterns of a claim must match.
+
+max_pages: 2
+
+required_sections:
+  # a list inside the list means "any of these headings"
+  de:
+    - [Profil, Kurzprofil]
+    - [Berufserfahrung, Berufliche Erfahrung, Praxiserfahrung]
+    - [Ausbildung, Studium]
+    - [Projekte]
+    - [Kenntnisse, Fähigkeiten, Skills]
+    - [Sprachen]
+  en:
+    - [Profile, Summary]
+    - [Experience, Work experience]
+    - [Education]
+    - [Projects]
+    - [Skills]
+    - [Languages]
+
+keywords:
+  common:
+    - Python
+    - TypeScript
+    - PowerShell
+    - GitHub
+    - GAMP 5
+    - GMP
+    - Questify
+    - Complaint Dossier
+    - github.com/vassiljevnikita-sudo
+  de:
+    - Pharmazie
+    - Qualitätssicherung
+  en:
+    - pharmacy
+    - quality assurance
+
+claims:
+  - id: questify-released
+    ledger: Questify is released for Android and web
+    de: [Questify, Android, Web]
+    en: [Questify, Android, web]
+  - id: qbd-research
+    ledger: "QBD research: 1.63 bn prediction rows, 2,790 model families, leakage-free validation"
+    de: ['1,63\s*(Mrd|Milliarden)', '2\.?790']
+    en: ['1\.63\s*(bn|billion)', '2,?790']
+  - id: complaint-dossier
+    ledger: Complaint Dossier PowerShell workflow
+    de: [Complaint Dossier, PowerShell]
+    en: [Complaint Dossier, PowerShell]
+  - id: gamp-wording
+    ledger: Complaint Dossier designed along GAMP 5 principles (rewritten wording)
+    de: ['GAMP[- ]5[- ]Prinzipien|Prinzipien (von|nach) GAMP[- ]5']
+    en: ['GAMP 5 principles']
+  - id: ai-prototype-wording
+    ledger: AI prototype at the former employer, built and presented (rewritten wording)
+    de: ['Prototyp']
+    en: ['prototype']
+  - id: languages
+    ledger: Python and TypeScript
+    de: [Python, TypeScript]
+    en: [Python, TypeScript]
+  - id: availability
+    ledger: Availability Feb to Aug 2027
+    de: ['15\.02\.', '12\.04\.', '18\.07\.', '2027']
+    en: ['(15\.02\.|15 Feb|February 15)', '(12\.04\.|12 Apr|April 12)', '(18\.07\.|18 Jul|July 18)', '2027']
+
+forbidden_phrases:
+  common:
+    - GAMP 5 compliant
+    - GAMP-5-konform
+    - GAMP 5 konform
+    - vollagentisch
+    - fully agentic
+
+languagetool:
+  # rule IDs to ignore entirely (keep this short; prefer allowlist.txt for single words)
+  ignore_rules: []

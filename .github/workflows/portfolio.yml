@@ -1,0 +1,65 @@
+# Full portfolio run: every check against every target in targets.yaml.
+# The job fails when any check fails; report.md, report.json and screenshots are
+# uploaded as an artifact either way, and report.md is shown as the job summary.
+name: portfolio
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  schedule:
+    # GitHub cron runs in UTC. 05:00 UTC is 06:00 in Berlin during winter time (CET).
+    # During summer time (CEST, late March to late October) the run starts at 07:00 Berlin.
+    - cron: "0 5 * * *"
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: portfolio
+  cancel-in-progress: false
+
+env:
+  GITLEAKS_VERSION: "8.30.1"
+
+jobs:
+  portfolio:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install package
+        run: pip install -e .
+      - name: Install Chromium for Playwright
+        run: python -m playwright install --with-deps chromium
+      - name: Install gitleaks
+        run: |
+          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
+            | tar -xz -C /usr/local/bin gitleaks
+          gitleaks version
+      # CV files are personal data and are not stored in this repo, so the CV checks
+      # report "skipped (no CV provided)" here. Run them locally with --cv-de/--cv-en.
+      - name: Run all checks
+        env:
+          DENYLIST: ${{ secrets.DENYLIST }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python -m portfolio_check --all --out out
+      - name: Job summary
+        if: always()
+        run: test -f out/report.md && cat out/report.md >> "$GITHUB_STEP_SUMMARY" || true
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: portfolio-report
+          path: |
+            out/report.md
+            out/report.json
+            out/screenshots/
+          if-no-files-found: warn
+          retention-days: 30

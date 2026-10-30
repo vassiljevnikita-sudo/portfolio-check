@@ -1,0 +1,113 @@
+"""Load targets.yaml and cv_rules.yaml into plain dataclasses."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from pathlib import Path
+
+import yaml
+
+
+@dataclass
+class RepoTarget:
+    name: str
+    slug: str
+    ci_workflows: list[str] = field(default_factory=list)
+    skip_checks: list[str] = field(default_factory=list)
+    skip_reason: str = ""
+    kind: str = "repo"
+
+    @property
+    def url(self) -> str:
+        return f"https://github.com/{self.slug}"
+
+
+@dataclass
+class SiteTarget:
+    name: str
+    url: str
+    required_phrases: list[str] = field(default_factory=list)
+    forbidden_phrases: list[str] = field(default_factory=list)
+    forbidden_patterns: list[str] = field(default_factory=list)
+    required_links: list[str] = field(default_factory=list)
+    min_numbers: int = 0
+    skip_checks: list[str] = field(default_factory=list)
+    skip_reason: str = ""
+    kind: str = "site"
+
+
+@dataclass
+class CvTarget:
+    name: str
+    path: str
+    language: str
+    rules_language: str
+    env: str = ""
+    skip_checks: list[str] = field(default_factory=list)
+    skip_reason: str = ""
+    kind: str = "cv"
+
+
+@dataclass
+class Config:
+    root: Path
+    repos: list[RepoTarget]
+    sites: list[SiteTarget]
+    cvs: list[CvTarget]
+    cv_rules: dict
+    allowlist: list[str]
+    link_timeout: float = 10.0
+    readme_first_screen_lines: int = 60
+
+    @property
+    def targets(self) -> list:
+        return [*self.repos, *self.sites, *self.cvs]
+
+    def target(self, name: str):
+        for t in self.targets:
+            if t.name == name:
+                return t
+        raise KeyError(name)
+
+
+def _load_yaml(path: Path) -> dict:
+    with path.open(encoding="utf-8") as fh:
+        return yaml.safe_load(fh) or {}
+
+
+def load_config(path: str | Path) -> Config:
+    path = Path(path).resolve()
+    root = path.parent
+    raw = _load_yaml(path)
+    settings = raw.get("settings", {})
+
+    repos = [RepoTarget(**r) for r in raw.get("repos", [])]
+    sites = [SiteTarget(**s) for s in raw.get("sites", [])]
+    cvs = [CvTarget(**c) for c in raw.get("cvs", [])]
+
+    names = [t.name for t in (*repos, *sites, *cvs)]
+    dupes = {n for n in names if names.count(n) > 1}
+    if dupes:
+        raise ValueError(f"duplicate target names in {path.name}: {sorted(dupes)}")
+
+    rules_file = settings.get("cv_rules", "cv_rules.yaml")
+    cv_rules = _load_yaml(root / rules_file) if (root / rules_file).exists() else {}
+
+    allow_file = settings.get("languagetool_allowlist", "allowlist.txt")
+    allowlist: list[str] = []
+    if (root / allow_file).exists():
+        for line in (root / allow_file).read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if line and not line.startswith("#"):
+                allowlist.append(line)
+
+    return Config(
+        root=root,
+        repos=repos,
+        sites=sites,
+        cvs=cvs,
+        cv_rules=cv_rules,
+        allowlist=allowlist,
+        link_timeout=float(settings.get("link_timeout", 10)),
+        readme_first_screen_lines=int(settings.get("readme_first_screen_lines", 60)),
+    )
