@@ -1,6 +1,6 @@
 # portfolio-check
 
-Checks every public link, demo page and README in my portfolio the way a logged-out visitor in a fresh browser meets them. The same tool checks my CV files, but only on my machine: CI skips the CV checks, and I run them locally before sending a CV.
+Checks every public link, demo page and README in my portfolio the way a logged-out visitor in a fresh browser sees them. The same tool checks my CV files, but only on my machine: CI skips the CV checks, and I run them locally before sending a CV.
 
 ![Summary table from a portfolio-check report](docs/report-sample.png)
 
@@ -28,6 +28,8 @@ The run prints one line per check, writes `report.md` and `report.json`, and exi
 | `cv-form` | the CV is at most 2 pages as PDF, has no nested tables and LanguageTool finds no error outside `allowlist.txt` |
 
 Targets live in [`targets.yaml`](targets.yaml), CV rules in [`cv_rules.yaml`](cv_rules.yaml).
+
+The repo checks cover every public repository of mine that is not a fork: complaint-dossier, simple-and-light-research, questify-releases, portfolio-check, my profile README and the side project safeincloud-linux. Forks are left out, because they hold other people's code and history.
 
 ## My role
 
@@ -72,6 +74,7 @@ Repos are cloned anonymously with credential helpers switched off, so a private 
 
 - [`test.yml`](.github/workflows/test.yml) runs the unit tests and checks this README on every push and pull request. It is this repo's CI status.
 - [`portfolio.yml`](.github/workflows/portfolio.yml) runs `--all` on push to `main`, on demand and daily at 05:00 UTC. It has no CV files, so the CV checks are skipped there. It fails when any check fails and uploads `report.md`, `report.json` and the screenshots as the `portfolio-report` artifact.
+- GitHub switches off scheduled workflows in a public repo after 60 days without repository activity. The `keepalive` job in `portfolio.yml` therefore calls the API endpoint that enables the workflow on every run. If the daily runs ever stop anyway, re-enable the workflow on the Actions tab.
 
 ## Development
 
