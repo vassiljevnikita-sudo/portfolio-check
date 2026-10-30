@@ -58,6 +58,7 @@ class Config:
     allowlist: list[str]
     link_timeout: float = 10.0
     readme_first_screen_lines: int = 60
+    link_exceptions: list[dict] = field(default_factory=list)
 
     @property
     def targets(self) -> list:
@@ -115,4 +116,15 @@ def load_config(path: str | Path) -> Config:
         allowlist=allowlist,
         link_timeout=float(settings.get("link_timeout", 10)),
         readme_first_screen_lines=int(settings.get("readme_first_screen_lines", 60)),
+        link_exceptions=[_link_exception(e) for e in settings.get("link_exceptions", []) or []],
     )
+
+
+def _link_exception(raw: dict) -> dict:
+    """One entry of settings.link_exceptions: host, status list and a required reason."""
+    host = str(raw.get("host", "")).lower().strip()
+    statuses = [int(s) for s in raw.get("status", [])]
+    reason = str(raw.get("reason", "")).strip()
+    if not host or not statuses or not reason:
+        raise ValueError(f"link_exceptions entry needs host, status and reason: {raw}")
+    return {"host": host, "status": statuses, "reason": reason}

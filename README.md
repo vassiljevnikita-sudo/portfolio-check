@@ -1,6 +1,6 @@
 # portfolio-check
 
-Checks every public link, demo page, README and CV in my portfolio the way a logged-out visitor in a fresh browser meets them.
+Checks every public link, demo page and README in my portfolio the way a logged-out visitor in a fresh browser meets them. The same tool checks my CV files, but only on my machine: CI skips the CV checks, and I run them locally before sending a CV.
 
 ![Summary table from a portfolio-check report](docs/report-sample.png)
 
@@ -41,8 +41,8 @@ Python 3.10+, requests, Playwright with Chromium, gitleaks, python-docx, LibreOf
 
 - The README check looks for headings and labels. It cannot tell whether the text under them is any good.
 - CV text goes to the public LanguageTool API unless `LANGUAGETOOL_URL` points to a self-hosted server. The public API also has a rate limit.
-- CV files hold personal data and are not stored here. In CI the CV checks therefore report `skipped: no CV path given`, and the report says that a skip is not a pass. I run them on my machine before sending a CV.
-- Any status other than 200 counts as broken, including sites that block automated requests.
+- CV files hold personal data and are not stored here. CI therefore skips the CV checks (`skipped: no CV path given`), and the report says that a skip is not a pass. I check the CVs locally before sending them, with the CV command under Usage.
+- Any status other than 200 counts as broken, including sites that block automated requests. One exception, listed under `link_exceptions` in `targets.yaml`: Google Scholar answers 403 to GitHub's runners, so CI reports that link as "not verified from CI" instead of failing. A local run still needs 200.
 - Denylist matching is a plain substring search, so short terms also hit inside longer words. The report marks those hits.
 - GitHub cron runs in UTC, so the daily run starts at 06:00 Berlin time in winter and 07:00 in summer.
 
@@ -71,7 +71,7 @@ Repos are cloned anonymously with credential helpers switched off, so a private 
 ## CI
 
 - [`test.yml`](.github/workflows/test.yml) runs the unit tests and checks this README on every push and pull request. It is this repo's CI status.
-- [`portfolio.yml`](.github/workflows/portfolio.yml) runs `--all` on push to `main`, on demand and daily at 05:00 UTC. It fails when any check fails and uploads `report.md`, `report.json` and the screenshots as the `portfolio-report` artifact.
+- [`portfolio.yml`](.github/workflows/portfolio.yml) runs `--all` on push to `main`, on demand and daily at 05:00 UTC. It has no CV files, so the CV checks are skipped there. It fails when any check fails and uploads `report.md`, `report.json` and the screenshots as the `portfolio-report` artifact.
 
 ## Development
 

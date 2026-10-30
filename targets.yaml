@@ -6,6 +6,13 @@ settings:
   readme_first_screen_lines: 60   # "first screen" of a README
   cv_rules: cv_rules.yaml
   languagetool_allowlist: allowlist.txt
+  # Hosts that refuse requests from GitHub's runners. Only on a CI runner, a listed
+  # status from a listed host is reported as "not verified from CI" instead of failing.
+  # A local run still needs status 200 for the same URL.
+  link_exceptions:
+    - host: scholar.google.com
+      status: [403]
+      reason: Google Scholar answers 403 to GitHub Actions runners; the same URL returns 200 from a home connection
 
 repos:
   - name: complaint-dossier
@@ -14,14 +21,14 @@ repos:
     slug: vassiljevnikita-sudo/simple-and-light-research
   - name: questify-releases
     slug: vassiljevnikita-sudo/questify-releases
-    # release-only repo (APK downloads); WP4 accepts it by links and README, not CI
+    # release-only repo (APK downloads); checked by links and README, not CI
     skip_checks: [ci]
-    skip_reason: release-only repo without a build; WP4 does not require CI
+    skip_reason: release-only repo without a build, so there is no CI run to check
   - name: profile
     slug: vassiljevnikita-sudo/vassiljevnikita-sudo
     # the profile README is a landing page for three projects, not a project README
     skip_checks: [readme, ci]
-    skip_reason: GitHub profile README; WP5 accepts it by links and pins
+    skip_reason: GitHub profile README, a landing page rather than a project; checked by links only
   - name: portfolio-check
     slug: vassiljevnikita-sudo/portfolio-check
     # portfolio.yml is the report itself; the repo's own CI is the unit-test workflow.
