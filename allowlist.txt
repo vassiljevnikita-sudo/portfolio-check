@@ -1,0 +1,42 @@
+# Technical terms LanguageTool may flag as misspelled. One term per line, case-insensitive.
+# "span: TEXT" exempts an exact passage. Names and addresses go in a private file passed
+# with --allowlist-file, never here.
+GAMP
+GMP
+GDP
+CAPA
+SOP
+SOPs
+Pester
+PowerShell
+Copilot
+TypeScript
+JavaScript
+Python
+pandas
+NumPy
+Expo
+React
+Supabase
+PostgreSQL
+GitHub
+Playwright
+gitleaks
+LanguageTool
+LibreOffice
+Questify
+QBD
+Vassiljev
+Nikita
+APK
+FinTS
+Health Connect
+LLM
+LLMs
+CI
+CSV
+JSON
+YAML
+docx
+Leakage
+leakage-free

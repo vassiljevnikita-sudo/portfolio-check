@@ -1,0 +1,72 @@
+# What portfolio-check verifies. A new project is one new entry.
+# Target names are used with --target NAME and --local NAME=PATH.
+
+settings:
+  link_timeout: 10                # seconds per URL
+  readme_first_screen_lines: 60   # "first screen" of a README
+  cv_rules: cv_rules.yaml
+  languagetool_allowlist: allowlist.txt
+
+repos:
+  - name: complaint-dossier
+    slug: vassiljevnikita-sudo/complaint-dossier
+  - name: simple-and-light-research
+    slug: vassiljevnikita-sudo/simple-and-light-research
+  - name: questify-releases
+    slug: vassiljevnikita-sudo/questify-releases
+    # release-only repo (APK downloads); WP4 accepts it by links and README, not CI
+    skip_checks: [ci]
+    skip_reason: release-only repo without a build; WP4 does not require CI
+  - name: profile
+    slug: vassiljevnikita-sudo/vassiljevnikita-sudo
+    # the profile README is a landing page for three projects, not a project README
+    skip_checks: [readme, ci]
+    skip_reason: GitHub profile README; WP5 accepts it by links and pins
+  - name: portfolio-check
+    slug: vassiljevnikita-sudo/portfolio-check
+    # portfolio.yml is the report itself; the repo's own CI is the unit-test workflow.
+    ci_workflows: [test.yml]
+
+sites:
+  - name: questify
+    url: https://mastertasker.expo.app/willkommen/
+    required_phrases:
+      - Built by Nikita Vassiljev
+      - Impressum
+      - Datenschutz
+    required_links:
+      - https://github.com/vassiljevnikita-sudo
+    forbidden_phrases:
+      # invite banner text; must only show with an invite code in the URL
+      - lädt dich zu Questify ein
+    min_numbers: 0
+
+  - name: qbd-demo
+    url: https://simple-light-qbd.expo.app/
+    required_phrases:
+      - Nikita Vassiljev
+      - Research only, no real capital, no investment advice
+    required_links:
+      - https://github.com/vassiljevnikita-sudo/simple-and-light-research
+    forbidden_phrases:
+      - Keine Messwerte
+      - Keine ausgeführten Trades
+    forbidden_patterns:
+      # a line that holds nothing but a dash placeholder (em dash, en dash or hyphen)
+      - "^\\s*[—–-]\\s*$"
+    min_numbers: 4
+
+# CV files hold personal contact data and are never committed (cv/ is gitignored).
+# Pass them with --cv-de / --cv-en or the env vars below. Without a file the CV
+# checks are skipped; with --require-cv they fail instead.
+cvs:
+  - name: cv-de
+    path: cv/Lebenslauf_Nikita_Vassiljev_2026-11.docx
+    env: PORTFOLIO_CV_DE
+    language: de-DE
+    rules_language: de
+  - name: cv-en
+    path: cv/CV_Nikita_Vassiljev_2026-11.docx
+    env: PORTFOLIO_CV_EN
+    language: en-US
+    rules_language: en
