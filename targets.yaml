@@ -43,21 +43,29 @@ repos:
     skip_reason: side project with a German README, not one of the portfolio projects; checked for secrets, denylist and CI
 
 sites:
+  # The landing page as restored on 30 Oct 2026 (the version with the 3D phone).
+  # The render check cannot test the WebGL canvas, so the 3D phone is not checked here.
   - name: questify
     url: https://mastertasker.expo.app/willkommen/
     required_phrases:
-      - Built by Nikita Vassiljev
+      - bringen jetzt XP
+      - Kostenlos auf Android und im Web
+      - Vier Looks
+      - Noch Fragen
       - Impressum
       - Datenschutz
     required_links:
-      - https://github.com/vassiljevnikita-sudo
+      - https://github.com/vassiljevnikita-sudo/questify-releases/releases/latest/download/questify.apk
+      - https://mastertasker.expo.app/
+      - https://mastertasker.expo.app/website/5/impressum.html
+      - https://mastertasker.expo.app/website/5/datenschutz.html
     forbidden_phrases:
       # invite banner text; must only show with an invite code in the URL
       - lädt dich zu Questify ein
     min_numbers: 0
     # Screenshots that showed HTTP 429 on 30 Oct 2026: the hero phone, the
     # leaderboard phone and the three other Looks tiles. Matched by file name, so
-    # both the old shots/ and the current phone-model/screens/ paths count.
+    # both the shots/ and the phone-model/screens/ paths count.
     required_images:
       - /arena/start.webp
       - /arena/rangliste.webp
